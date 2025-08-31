@@ -6,46 +6,71 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: recipe
+          POSTGRES_PASSWORD: recipe
+          POSTGRES_DB: recipebook
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U recipe -d recipebook"
+          --health-interval=5s --health-timeout=5s --health-retries=20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Primary: install pnpm via official action
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'   # cache only; does NOT install pnpm
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.15.0
           run_install: false
 
-      # Fallback + diagnostics: if pnpm isn't on PATH, activate via Corepack
-      - name: Verify pnpm & fallback via Corepack if missing
-        shell: bash
-        run: |
-          set -euxo pipefail
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found on PATH; activating via Corepack…"
-            corepack enable
-            COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@10.15.0 --activate
-          fi
-          echo "PATH is: $PATH"
-          which pnpm
-          pnpm --version
-
-      - name: Use Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'  # enables dependency cache; does NOT install pnpm
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Install deps
         run: pnpm install --frozen-lockfile=false
 
-      - name: Prisma generate (no DB needed)
+      - name: Prisma generate
         run: pnpm exec prisma generate
+
+      - name: Wait for DB
+        run: |
+          for i in {1..60}; do
+            if pg_isready -h localhost -p 5432 -U recipe >/dev/null 2>&1; then
+              echo "DB is ready"; exit 0
+            fi
+            echo "waiting for db..."; sleep 1
+          done
+          echo "DB not ready" && exit 1
+
+      - name: Migrate + seed
+        env:
+          DATABASE_URL: postgresql://recipe:recipe@localhost:5432/recipebook
+        run: |
+          pnpm exec prisma migrate deploy
+          pnpm run seed || true
 
       - name: Typecheck
         run: pnpm exec tsc --noEmit
@@ -53,7 +78,5 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          # Dummy DB URL so env exists during build; Prisma will not connect here
-          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+          DATABASE_URL: postgresql://recipe:recipe@localhost:5432/recipebook
         run: pnpm run build
-
