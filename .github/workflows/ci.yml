@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,13 +18,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'   # enables dependency cache (doesn't install pnpm)
+          cache: 'pnpm'  # enables dependency cache; does NOT install pnpm
 
+      # Primary: install pnpm via official action
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.15.0
           run_install: false
+
+      # Fallback + diagnostics: if pnpm isn't on PATH, activate via Corepack
+      - name: Verify pnpm & fallback via Corepack if missing
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found on PATH; activating via Corepack…"
+            corepack enable
+            COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@10.15.0 --activate
+          fi
+          echo "PATH is: $PATH"
+          which pnpm
+          pnpm --version
 
       - name: Install deps
         run: pnpm install --frozen-lockfile=false
@@ -37,7 +53,7 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          # Dummy DB URL so env exists during build; Prisma won't connect here
+          # Dummy DB URL so env exists during build; Prisma will not connect here
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
         run: pnpm run build
 
