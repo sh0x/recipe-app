@@ -14,12 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'  # enables dependency cache; does NOT install pnpm
-
       # Primary: install pnpm via official action
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -40,6 +34,12 @@ jobs:
           echo "PATH is: $PATH"
           which pnpm
           pnpm --version
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'  # enables dependency cache; does NOT install pnpm
 
       - name: Install deps
         run: pnpm install --frozen-lockfile=false
