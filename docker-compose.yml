@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recipe
+      POSTGRES_PASSWORD: recipe
+      POSTGRES_DB: recipebook
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  web:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://recipe:recipe@db:5432/recipebook
+      NEXT_TELEMETRY_DISABLED: "1"
+      HOST: 0.0.0.0
+    ports:
+      - "3000:3000"
+    user: "1000:1000"                     # run as 'node' user
+    volumes:
+      - .:/app                            # your code
+      - pnpm_store:/app/.pnpm-store       # persistent pnpm cache
+    # IMPORTANT: allow executing scripts in node_modules
+    tmpfs:
+      - /app/node_modules:rw,exec,uid=1000,gid=1000
+
+volumes:
+  dbdata: {}
+  pnpm_store: {}
+

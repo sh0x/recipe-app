@@ -1,0 +1,36 @@
+{
+  "name": "RecipeBook Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "web",
+  "workspaceFolder": "/app",
+
+  "overrideCommand": true,
+  "runServices": ["db", "web"],
+  "remoteUser": "node",
+  "remoteEnv": { "VSCODE_AGENT_FOLDER": "/home/node/.vscode-server" },
+  "runArgs": ["--memory=6g", "--shm-size=1g"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Prisma.prisma",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  },
+
+  "forwardPorts": [3000, 5432],
+
+  "postCreateCommand": [
+    "bash", "-lc",
+    "corepack enable && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@latest --activate && mkdir -p /home/node/.pnpm-store && pnpm config set store-dir /home/node/.pnpm-store --global && pnpm install --force"
+  ],
+
+  "postStartCommand": [
+    "bash", "-lc",
+    "until pg_isready -h db -p 5432 -U recipe >/dev/null 2>&1; do echo waiting for db; sleep 1; done; npx prisma generate || true; npx prisma migrate dev --name init || true; pnpm run seed || true"
+  ]
+}
+

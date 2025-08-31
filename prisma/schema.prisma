@@ -1,0 +1,122 @@
+// --- Prisma client & DB ---
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+enum Visibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum RecipeKind {
+  TOP_LEVEL
+  COMPONENT
+}
+
+enum UnitSystem {
+  METRIC
+  US
+}
+
+enum RecipeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum IncludeMode {
+  LINK
+  INLINE
+}
+
+// --- Models ---
+model Book {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  title      String
+  visibility Visibility @default(PRIVATE)
+  recipes    Recipe[]
+  createdAt  DateTime   @default(now())
+}
+
+model Recipe {
+  id          String       @id @default(cuid())
+  bookId      String
+  book        Book         @relation(fields: [bookId], references: [id])
+  slug        String
+  kind        RecipeKind   @default(TOP_LEVEL)
+  title       String
+  subtitle    String?
+  description String?
+  yieldQty    Float?
+  yieldUnit   String?
+  unitSystem  UnitSystem   @default(US)
+  prepMin     Int?
+  cookMin     Int?
+  totalMin    Int?
+  status      RecipeStatus @default(DRAFT)
+  version     Int          @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  ingredients IngredientLine[]
+  steps       Step[]
+  components  RecipeComponent[]
+  media       Media[]
+
+  @@unique([bookId, slug, version])
+}
+
+model IngredientLine {
+  id        String  @id @default(cuid())
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id])
+  groupName String?
+  qty       Float?
+  unit      String?
+  item      String
+  prep      String?
+  optional  Boolean @default(false)
+  notes     String?
+  position  Int
+}
+
+model Step {
+  id        String  @id @default(cuid())
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id])
+  text      String
+  timerSec  Int?
+  position  Int
+}
+
+model RecipeComponent {
+  id            String      @id @default(cuid())
+  recipeId      String
+  recipe        Recipe      @relation(fields: [recipeId], references: [id])
+  targetBook    String
+  targetSlug    String
+  targetVersion Int?
+  scale         Float       @default(1)
+  includeMode   IncludeMode @default(LINK)
+  notes         String?
+  position      Int
+}
+
+model Media {
+  id       String  @id @default(cuid())
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id])
+  kind     String
+  url      String
+  alt      String?
+  position Int
+}
+

@@ -1,0 +1,56 @@
+# Node / PNPM
+node_modules/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# PNPM store (we use a mounted store in containers; ignore if it appears locally)
+.pnpm-store/
+
+# Next.js build artifacts
+.next/
+out/
+dist/
+
+# Prisma client caches (generated engines, etc. — client itself lives in node_modules)
+.prisma/
+
+# Env files (keep .env.example committed)
+.env
+.env.*.local
+.env.local
+
+# DB files (if anyone switches to SQLite locally)
+*.db
+*.sqlite
+*.sqlite-journal
+
+# Coverage / lint caches
+coverage/
+.nyc_output/
+.eslintcache
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.idea/
+*.swp
+*.swo
+
+# VS Code — keep recommended files, ignore the rest
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+# (add !.vscode/settings.json if you want to share settings)
+
+# Devcontainer: keep configs, ignore local state if any shows up
+# (We DO commit .devcontainer/**)
+# .devcontainer/local/**   # uncomment if you create any local-only files
+
+# Docker
+docker-volume/

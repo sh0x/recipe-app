@@ -1,0 +1,63 @@
+{
+  "book": "winners",
+  "slug": "garlic-mojo",
+  "kind": "COMPONENT",
+  "title": "Garlic Mojo",
+  "description": "Citrusy garlicky oil for drizzling.",
+  "yield": {
+    "qty": 1,
+    "unit": "cup"
+  },
+  "unitSystem": "US",
+  "times": {
+    "prepMin": 10,
+    "cookMin": 10,
+    "totalMin": 20
+  },
+  "tags": [
+    "sauce",
+    "mojo"
+  ],
+  "ingredients": [
+    {
+      "group": null,
+      "qty": 6,
+      "unit": "clove",
+      "item": "garlic",
+      "prep": "smashed",
+      "position": 1
+    },
+    {
+      "group": null,
+      "qty": 240,
+      "unit": "ml",
+      "item": "olive oil",
+      "position": 2
+    },
+    {
+      "group": null,
+      "qty": 2,
+      "unit": "tbsp",
+      "item": "lime juice",
+      "position": 3
+    },
+    {
+      "group": null,
+      "qty": 1,
+      "unit": "tsp",
+      "item": "salt",
+      "position": 4
+    }
+  ],
+  "steps": [
+    {
+      "position": 1,
+      "text": "Gently warm garlic in oil until fragrant; cool; stir in lime and salt.",
+      "timerSec": 600
+    }
+  ],
+  "components": [],
+  "media": [],
+  "status": "PUBLISHED",
+  "version": 1
+}
