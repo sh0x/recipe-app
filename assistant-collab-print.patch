@@ -1,0 +1,290 @@
+diff --git a/.github/ISSUE_TEMPLATE/bug.yml b/.github/ISSUE_TEMPLATE/bug.yml
+new file mode 100644
+index 0000000..b1f0f8c
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/bug.yml
+@@ -0,0 +1,42 @@
++name: "🐞 Bug"
++description: Report a reproducible problem
++labels: ["bug"]
++body:
++  - type: textarea
++    id: what
++    attributes:
++      label: What happened?
++      description: Clear description of the bug.
++      placeholder: It broke when I clicked Print on carnitas…
++    validations:
++      required: true
++  - type: textarea
++    id: steps
++    attributes:
++      label: Steps to reproduce
++      placeholder: |
++        1. Go to /recipes/carnitas-confit
++        2. Click Print
++        3. See error
++  - type: input
++    id: url
++    attributes:
++      label: URL
++      placeholder: http://localhost:3000/recipes/...
++  - type: input
++    id: env
++    attributes:
++      label: Environment (OS, browser)
++      placeholder: macOS 14.5, Chrome 125
++  - type: textarea
++    id: extra
++    attributes:
++      label: Extra context / logs
++
+diff --git a/.github/ISSUE_TEMPLATE/feature.yml b/.github/ISSUE_TEMPLATE/feature.yml
+new file mode 100644
+index 0000000..b1ae469
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/feature.yml
+@@ -0,0 +1,39 @@
++name: "✨ Feature"
++description: Request or plan a feature
++labels: ["feature"]
++body:
++  - type: textarea
++    id: summary
++    attributes:
++      label: Summary
++      placeholder: Add print layout for recipe pages…
++    validations:
++      required: true
++  - type: textarea
++    id: why
++    attributes:
++      label: Why
++      placeholder: Why this matters (user impact, business goal)
++  - type: textarea
++    id: scope
++    attributes:
++      label: Scope / Acceptance criteria
++      placeholder: |
++        - /recipes/[slug]/print renders compact ingredients + steps
++        - Hides navigation, shows QR to live page
++        - No page breaks inside ingredient groups
++  - type: textarea
++    id: notes
++    attributes:
++      label: Notes / Design references
++
+diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
+new file mode 100644
+index 0000000..4b5e2b6
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE/config.yml
+@@ -0,0 +1,5 @@
++blank_issues_enabled: false
++contact_links:
++  - name: Docs
++    url: https://github.com/sh0x/recipe-app/tree/main/docs
++    about: Project docs & devcontainer tips
+diff --git a/.github/CODEOWNERS b/.github/CODEOWNERS
+new file mode 100644
+index 0000000..2ac55bf
+--- /dev/null
++++ b/.github/CODEOWNERS
+@@ -0,0 +1,6 @@
++# Default reviewers for all files
++* @sh0x
++
++# Optional finer routing examples:
++# /docs/ @sh0x
++# /prisma/ @sh0x
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+new file mode 100644
+index 0000000..1c02f08
+--- /dev/null
++++ b/CONTRIBUTING.md
+@@ -0,0 +1,52 @@
++# Contributing
++
++## Dev environment
++- **VS Code Dev Containers** recommended. Open repo → “Rebuild and Reopen in Container”.
++- Or run locally via Docker: `docker compose up --build`
++- App → http://localhost:3000
++
++## Common commands
++```bash
++pnpm dev          # run Next dev server
++pnpm build        # production build
++npx prisma studio # browse DB
++npx prisma generate && npx prisma migrate dev --name init
++pnpm run seed
++```
++
++## Branches & PRs
++- Branch from `main`: `feat/...`, `fix/...`, `chore/...`
++- Keep PRs small and focused; include **How to test** steps
++- CI must be ✅ before merge
++
++## Code style
++- TypeScript strict by default
++- Keep components small; prefer server components unless you need client state
++- Avoid global side-effects; consider utility modules under `src/lib`
++
++## Database
++- Prisma schema lives in `prisma/schema.prisma`
++- Commit migrations (`prisma/migrations/**`)
++
++## Notes
++- Env vars: `.env.example` contains defaults; never commit real secrets
++- Node modules are ephemeral inside the Dev Container (tmpfs) and re-installed automatically
+diff --git a/src/app/recipes/[slug]/page.tsx b/src/app/recipes/[slug]/page.tsx
+index 4db9932..2f1047a 100644
+--- a/src/app/recipes/[slug]/page.tsx
++++ b/src/app/recipes/[slug]/page.tsx
+@@ -1,7 +1,7 @@
+ import { db } from '@/lib/db';
+ import Link from 'next/link';
+ 
+ export default async function RecipePage({ params }: { params: { slug: string } }){
+   const { slug } = params;
+   const recipe = await db.recipe.findFirst({
+     where: { slug }, orderBy: { version: 'desc' },
+@@ -12,6 +12,13 @@ export default async function RecipePage({ params }: { params: { slug: string } }){
+   if (!recipe) return <div>Not found.</div>;
+ 
+   const grouped = recipe.ingredients.reduce((acc: Record<string, typeof recipe.ingredients>, ing) => {
+     const key = ing.groupName ?? 'Ingredients'; (acc[key] ||= []).push(ing as any); return acc;
+   }, {});
+ 
+   return (
+     <main className="space-y-6">
+       <div className="flex items-center justify-between">
+         <div>
+           <h2 className="text-2xl font-semibold">{recipe.title}</h2>
+           <div className="text-sm text-gray-500">{recipe.slug} — v{recipe.version}</div>
+         </div>
+-        <div className="text-sm text-gray-600">{recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
++        <div className="flex items-center gap-4">
++          <Link href={`/recipes/${recipe.slug}/print`} className="text-sm underline">
++            Print
++          </Link>
++          <div className="text-sm text-gray-600">
++            {recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}
++          </div>
++        </div>
+       </div>
+ 
+       <section className="grid gap-6 md:grid-cols-2">
+diff --git a/src/app/recipes/[slug]/print/page.tsx b/src/app/recipes/[slug]/print/page.tsx
+new file mode 100644
+index 0000000..a8c62e2
+--- /dev/null
++++ b/src/app/recipes/[slug]/print/page.tsx
+@@ -0,0 +1,137 @@
++import { db } from '@/lib/db';
++
++export const metadata = { title: 'Print Recipe' };
++
++export default async function PrintRecipePage({ params }: { params: { slug: string } }){
++  const { slug } = params;
++  const recipe = await db.recipe.findFirst({
++    where: { slug }, orderBy: { version: 'desc' },
++    include: { ingredients: true, steps: true, components: true, book: true }
++  });
++  if (!recipe) return <div>Not found.</div>;
++
++  const grouped = recipe.ingredients.reduce((acc: Record<string, typeof recipe.ingredients>, ing) => {
++    const key = ing.groupName ?? 'Ingredients'; (acc[key] ||= []).push(ing as any); return acc;
++  }, {});
++
++  return (
++    <html lang="en">
++      <head>
++        <meta name="viewport" content="width=device-width, initial-scale=1" />
++        <title>{recipe.title} — Print</title>
++        <style>{`
++          :root { --fg: #111; --muted: #666; --border: #e5e7eb; }
++          * { box-sizing: border-box; }
++          html, body { margin: 0; padding: 0; color: var(--fg); font: 14px/1.35 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji"; }
++          .page { max-width: 800px; margin: 0 auto; padding: 24px; }
++          header { display:flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; }
++          h1 { font-size: 22px; margin: 0; }
++          .sub { color: var(--muted); font-size: 12px; }
++          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
++          .group { break-inside: avoid; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
++          .group-title { font-weight: 600; margin-bottom: 6px; }
++          ul { list-style: disc; padding-left: 18px; margin: 0; }
++          li { margin: 2px 0; }
++          ol { padding-left: 18px; margin: 0; }
++          .steps { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
++          .meta { color: var(--muted); font-size: 12px; }
++          @media print {
++            .no-print { display: none !important; }
++            a { color: inherit; text-decoration: none; }
++            .page { padding: 0; }
++          }
++        `}</style>
++      </head>
++      <body>
++        <div className="page">
++          <header>
++            <div>
++              <h1>{recipe.title}</h1>
++              <div className="sub">{recipe.slug} — v{recipe.version}{recipe.yieldQty ? ` • ${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
++            </div>
++            <div className="sub">
++              {recipe.prepMin ? `Prep ${recipe.prepMin}m` : ''} {recipe.cookMin ? `• Cook ${recipe.cookMin}m` : ''} {recipe.totalMin ? `• Total ${recipe.totalMin}m` : ''}
++            </div>
++          </header>
++
++          <section className="grid">
++            <div>
++              {Object.entries(grouped).map(([group, list]) => (
++                <div key={group} className="group">
++                  <div className="group-title">{group}</div>
++                  <ul>
++                    {list.sort((a,b)=>a.position-b.position).map(ing => (
++                      <li key={ing.id}>
++                        {ing.qty != null ? <><strong>{ing.qty}</strong> {ing.unit} </> : null}{ing.item}{ing.prep ? `, ${ing.prep}` : ''}
++                      </li>
++                    ))}
++                  </ul>
++                </div>
++              ))}
++              {recipe.components.length ? (
++                <div className="group" style={{marginTop: 12}}>
++                  <div className="group-title">Components</div>
++                  <ul>
++                    {recipe.components.sort((a,b)=>a.position-b.position).map(c => (
++                      <li key={c.id}>
++                        Uses {c.targetSlug} × {c.scale} ({c.includeMode})
++                      </li>
++                    ))}
++                  </ul>
++                </div>
++              ) : null}
++            </div>
++            <div>
++              <div className="steps">
++                <div className="group-title">Steps</div>
++                <ol>
++                  {recipe.steps.sort((a,b)=>a.position-b.position).map(st => (
++                    <li key={st.id}>
++                      {st.text} {st.timerSec ? <span className="meta">({Math.round(st.timerSec/60)} min)</span> : null}
++                    </li>
++                  ))}
++                </ol>
++              </div>
++              {recipe.description ? (
++                <p className="meta" style={{marginTop: 10}}>{recipe.description}</p>
++              ) : null}
++            </div>
++          </section>
++
++          <p className="no-print meta" style={{marginTop: 14}}>
++            Print view • See live: /recipes/{recipe.slug}
++          </p>
++        </div>
++      </body>
++    </html>
++  );
++}
