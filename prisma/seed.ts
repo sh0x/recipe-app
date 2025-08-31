@@ -4,12 +4,21 @@ const db = new PrismaClient();
 async function main(){
   const book = await db.book.upsert({
     where: { slug: 'winners' },
+    update: {},
     create: { slug: 'winners', title: 'Tested Winners' },
     update: {}
   });
 
-  await db.recipe.create({
-    data: {
+  await db.recipe.upsert({
+    where: {
+      bookId_slug_version: {
+        bookId: book.id,
+        slug: 'carnitas-confit',
+        version: 1,
+      },
+    },
+    update: {}, // nothing to change if exists
+    create: {
       bookId: book.id, slug: 'garlic-mojo', kind: 'COMPONENT',
       title: 'Garlic Mojo', description: 'Citrusy garlicky oil for drizzling.',
       status: 'PUBLISHED', version: 1,
@@ -27,8 +36,16 @@ async function main(){
     }
   });
 
-  await db.recipe.create({
-    data: {
+  await db.recipe.upsert({
+    where: {
+      bookId_slug_version: {
+        bookId: book.id,
+        slug: 'carnitas-confit',
+        version: 1,
+      },
+    },
+    update: {}, // nothing to change if exists
+    create: {
       bookId: book.id, slug: 'carnitas-confit', kind: 'TOP_LEVEL',
       title: 'Confit-Style Carnitas',
       description: 'Pork shoulder gently confited in lard, then broiled crisp.',
