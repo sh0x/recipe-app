@@ -7,6 +7,9 @@
   "overrideCommand": true,
   "runServices": ["db", "web"],
   "remoteUser": "node",
+  "mounts": [
+    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
+  ],
   "remoteEnv": { "VSCODE_AGENT_FOLDER": "/home/node/.vscode-server" },
   "runArgs": ["--memory=6g", "--shm-size=1g"],
 
