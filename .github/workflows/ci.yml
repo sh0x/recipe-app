@@ -1,20 +1,23 @@
 name: CI
 
 on:
-  push: { branches: [main] }
-  pull_request: { branches: [main] }
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Use Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'   # enables caching, but does NOT install pnpm
+          cache: 'pnpm'   # enables dependency cache (doesn't install pnpm)
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -34,6 +37,7 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+          # Dummy DB URL so env exists during build; Prisma won't connect here
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
         run: pnpm run build
 
