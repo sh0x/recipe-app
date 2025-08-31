@@ -16,6 +16,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgresql://recipe:recipe@localhost:5432/recipebook
 
     services:
       postgres:
@@ -34,17 +37,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # pnpm first (your approach), then Node (for cache)
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.15.0
           run_install: false
 
-      - name: Use Node 20
+      - name: Use Node 20 (with pnpm cache)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'   # cache only; does NOT install pnpm
+          cache: 'pnpm' # cache only; pnpm is already installed above
 
       - name: Install Postgres client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -52,8 +56,10 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile=false
 
-      - name: Prisma generate
-        run: pnpm exec prisma generate
+      - name: Prisma validate & generate
+        run: |
+          pnpm exec prisma validate
+          pnpm exec prisma generate
 
       - name: Wait for DB
         run: |
@@ -66,17 +72,29 @@ jobs:
           echo "DB not ready" && exit 1
 
       - name: Migrate + seed
-        env:
-          DATABASE_URL: postgresql://recipe:recipe@localhost:5432/recipebook
         run: |
           pnpm exec prisma migrate deploy
           pnpm run seed || true
+
+      # Cache Next.js build cache to speed up subsequent builds
+      - name: Restore Next.js cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextcache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('next.config.*','src/**/*.[jt]s','src/**/*.[jt]sx') }}
+          restore-keys: |
+            nextcache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Typecheck
         run: pnpm exec tsc --noEmit
 
       - name: Build
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
-          DATABASE_URL: postgresql://recipe:recipe@localhost:5432/recipebook
         run: pnpm run build
+
+      - name: Save Next.js cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextcache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+
