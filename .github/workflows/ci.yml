@@ -19,7 +19,7 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Enable Corepack & pnpm
+      - name: Enable Corepack & PNPM
         run: |
           corepack enable
           corepack prepare pnpm@latest --activate
@@ -37,7 +37,7 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          # Dummy DB URL so env is present during build
+          # Dummy DB url so env exists during build
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
         run: pnpm run build
 
