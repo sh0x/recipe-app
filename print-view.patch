@@ -1,0 +1,153 @@
+diff --git a/src/app/recipes/[slug]/page.tsx b/src/app/recipes/[slug]/page.tsx
+index 4db9932..c7e1c77 100644
+--- a/src/app/recipes/[slug]/page.tsx
++++ b/src/app/recipes/[slug]/page.tsx
+@@ -1,7 +1,8 @@
+ import { db } from '@/lib/db';
+-import Link from 'next/link';
++import Link from 'next/link';
+ 
+ export default async function RecipePage({ params }: { params: { slug: string } }){
+   const { slug } = params;
+   const recipe = await db.recipe.findFirst({
+     where: { slug }, orderBy: { version: 'desc' },
+@@ -12,18 +13,26 @@ export default async function RecipePage({ params }: { params: { slug: string } }){
+   if (!recipe) return <div>Not found.</div>;
+ 
+   const grouped = recipe.ingredients.reduce((acc: Record<string, typeof recipe.ingredients>, ing) => {
+     const key = ing.groupName ?? 'Ingredients'; (acc[key] ||= []).push(ing as any); return acc;
+   }, {});
+ 
+   return (
+     <main className="space-y-6">
+-      <div className="flex items-center justify-between">
++      <div className="flex items-center justify-between">
+         <div>
+           <h2 className="text-2xl font-semibold">{recipe.title}</h2>
+           <div className="text-sm text-gray-500">{recipe.slug} — v{recipe.version}</div>
+         </div>
+-        <div className="text-sm text-gray-600">{recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
++        <div className="flex items-center gap-4">
++          <Link href={`/recipes/${recipe.slug}/print`} className="text-sm underline">
++            Print
++          </Link>
++          <div className="text-sm text-gray-600">
++            {recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}
++          </div>
++        </div>
+       </div>
+ 
+       <section className="grid gap-6 md:grid-cols-2">
+         {/* …rest of your page unchanged … */}
+       </section>
+     </main>
+   );
+ }
+diff --git a/src/app/recipes/[slug]/print/page.tsx b/src/app/recipes/[slug]/print/page.tsx
+new file mode 100644
+index 0000000..b2f9c4a
+--- /dev/null
++++ b/src/app/recipes/[slug]/print/page.tsx
+@@ -0,0 +1,126 @@
++import { db } from '@/lib/db';
++
++export const metadata = { title: 'Print Recipe' };
++
++export default async function PrintRecipePage({ params }: { params: { slug: string } }){
++  const { slug } = params;
++  const recipe = await db.recipe.findFirst({
++    where: { slug }, orderBy: { version: 'desc' },
++    include: { ingredients: true, steps: true, components: true, book: true }
++  });
++  if (!recipe) return <div>Not found.</div>;
++
++  const grouped = recipe.ingredients.reduce((acc: Record<string, typeof recipe.ingredients>, ing) => {
++    const key = ing.groupName ?? 'Ingredients'; (acc[key] ||= []).push(ing as any); return acc;
++  }, {});
++
++  return (
++    <>
++      <style>{`
++        :root { --fg: #111; --muted: #666; --border: #e5e7eb; }
++        * { box-sizing: border-box; }
++        html, body { margin: 0; padding: 0; color: var(--fg); font: 14px/1.35 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji"; }
++        .page { max-width: 800px; margin: 0 auto; padding: 24px; }
++        header { display:flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; }
++        h1 { font-size: 22px; margin: 0; }
++        .sub { color: var(--muted); font-size: 12px; }
++        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
++        .group { break-inside: avoid; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
++        .group-title { font-weight: 600; margin-bottom: 6px; }
++        ul { list-style: disc; padding-left: 18px; margin: 0; }
++        li { margin: 2px 0; }
++        ol { padding-left: 18px; margin: 0; }
++        .steps { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
++        .meta { color: var(--muted); font-size: 12px; }
++        @media print {
++          .no-print { display: none !important; }
++          a { color: inherit; text-decoration: none; }
++          .page { padding: 0; }
++        }
++      `}</style>
++      <div className="page">
++        <header>
++          <div>
++            <h1>{recipe.title}</h1>
++            <div className="sub">{recipe.slug} — v{recipe.version}{recipe.yieldQty ? ` • ${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
++          </div>
++          <div className="sub">
++            {recipe.prepMin ? `Prep ${recipe.prepMin}m` : ''} {recipe.cookMin ? `• Cook ${recipe.cookMin}m` : ''} {recipe.totalMin ? `• Total ${recipe.totalMin}m` : ''}
++          </div>
++        </header>
++
++        <section className="grid">
++          <div>
++            {Object.entries(grouped).map(([group, list]) => (
++              <div key={group} className="group">
++                <div className="group-title">{group}</div>
++                <ul>
++                  {list.sort((a,b)=>a.position-b.position).map(ing => (
++                    <li key={ing.id}>
++                      {ing.qty != null ? <><strong>{ing.qty}</strong> {ing.unit} </> : null}{ing.item}{ing.prep ? `, ${ing.prep}` : ''}
++                    </li>
++                  ))}
++                </ul>
++              </div>
++            ))}
++            {recipe.components.length ? (
++              <div className="group" style={{marginTop: 12}}>
++                <div className="group-title">Components</div>
++                <ul>
++                  {recipe.components.sort((a,b)=>a.position-b.position).map(c => (
++                    <li key={c.id}>
++                      Uses {c.targetSlug} × {c.scale} ({c.includeMode})
++                    </li>
++                  ))}
++                </ul>
++              </div>
++            ) : null}
++          </div>
++          <div>
++            <div className="steps">
++              <div className="group-title">Steps</div>
++              <ol>
++                {recipe.steps.sort((a,b)=>a.position-b.position).map(st => (
++                  <li key={st.id}>
++                    {st.text} {st.timerSec ? <span className="meta">({Math.round(st.timerSec/60)} min)</span> : null}
++                  </li>
++                ))}
++              </ol>
++            </div>
++            {recipe.description ? (
++              <p className="meta" style={{marginTop: 10}}>{recipe.description}</p>
++            ) : null}
++          </div>
++        </section>
++
++        <p className="no-print meta" style={{marginTop: 14}}>
++          Print view • See live: /recipes/{recipe.slug}
++        </p>
++      </div>
++    </>
++  );
++}
