@@ -1,5 +1,4 @@
 name: CI
-
 on:
   push:
     branches: [main]
@@ -13,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Node 20 + PNPM cache
+      - name: Use Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -22,7 +21,7 @@ jobs:
       - name: Enable Corepack & PNPM
         run: |
           corepack enable
-          corepack prepare pnpm@latest --activate
+          COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@10.15.0 --activate
           pnpm --version
 
       - name: Install deps
@@ -37,7 +36,6 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
-          # Dummy DB url so env exists during build
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
         run: pnpm run build
 
