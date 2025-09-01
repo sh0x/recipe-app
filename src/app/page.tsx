@@ -45,7 +45,12 @@ export default function HomePage(){
   return (
     <main className="space-y-6">
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">All Recipes (latest)</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">All Recipes (latest)</h2>
+          <Link href="/recipes/new" className="btn bg-blue-600 text-white hover:bg-blue-700">
+            Create Recipe
+          </Link>
+        </div>
         
         <div>
           <input

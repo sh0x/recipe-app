@@ -2,19 +2,39 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import InlineComponent from '@/components/InlineComponent';
 
 export default function RecipePrintPage({ params }: { params: { slug: string } }){
   const { slug } = params;
   const [recipe, setRecipe] = useState<any>(null);
+  const [usedInRecipes, setUsedInRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchRecipe() {
       try {
-        const response = await fetch(`/api/recipes/${slug}`);
-        if (response.ok) {
-          const data = await response.json();
-          setRecipe(data);
+        // Fetch the recipe
+        const recipeResponse = await fetch(`/api/recipes/${slug}`);
+        if (recipeResponse.ok) {
+          const recipeData = await recipeResponse.json();
+          setRecipe(recipeData);
+        }
+
+        // Fetch recipes that use this recipe as a component
+        const usedInResponse = await fetch(`/api/recipes/used-in/${slug}`);
+        if (usedInResponse.ok) {
+          const usedInData = await usedInResponse.json();
+          
+          // Deduplicate to get only latest versions
+          const latestBySlug = new Map();
+          for (const recipe of usedInData) {
+            const existing = latestBySlug.get(recipe.slug);
+            if (!existing || recipe.version > existing.version) {
+              latestBySlug.set(recipe.slug, recipe);
+            }
+          }
+          
+          setUsedInRecipes(Array.from(latestBySlug.values()));
         }
       } catch (error) {
         console.error('Error fetching recipe:', error);
@@ -154,6 +174,40 @@ export default function RecipePrintPage({ params }: { params: { slug: string } }
           margin-bottom: 3px;
           font-size: 14px;
         }
+        .inline-component {
+          border-left: 2px solid #ccc;
+          padding-left: 15px;
+          margin: 10px 0;
+        }
+        .inline-component-title {
+          font-weight: bold;
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+        .inline-ingredients {
+          margin-bottom: 10px;
+        }
+        .inline-ingredient-group {
+          margin-bottom: 8px;
+        }
+        .inline-group-title {
+          font-weight: bold;
+          font-size: 12px;
+          border-bottom: 1px solid #ccc;
+          padding-bottom: 3px;
+          margin-bottom: 5px;
+        }
+        .inline-ingredient-item {
+          font-size: 12px;
+          margin-bottom: 2px;
+        }
+        .inline-steps {
+          font-size: 12px;
+        }
+        .inline-steps-title {
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
         .back-link {
           position: fixed;
           top: 20px;
@@ -220,13 +274,34 @@ export default function RecipePrintPage({ params }: { params: { slug: string } }
       {recipe.components.length > 0 && (
         <div className="components-section">
           <div className="components-title">Components</div>
-          <ul className="component-list">
+          <div className="component-list">
             {recipe.components.sort((a,b)=>a.position-b.position).map(c => (
-              <li key={c.id} className="component-item">
-                Uses {c.targetSlug} × {c.scale} ({c.includeMode})
-              </li>
+              <InlineComponent
+                key={c.id}
+                targetSlug={c.targetSlug}
+                scale={c.scale}
+                includeMode={c.includeMode}
+              />
             ))}
-          </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Used In Section */}
+      {usedInRecipes.length > 0 && (
+        <div className="components-section">
+          <div className="components-title">Used In</div>
+          <div className="component-list">
+            {usedInRecipes.map(usedInRecipe => {
+              const component = usedInRecipe.components?.find((c: any) => c.targetSlug === slug);
+              return (
+                <div key={usedInRecipe.id} className="component-item">
+                  {usedInRecipe.title} × {component?.scale || 1} 
+                  {component?.includeMode === 'INLINE' ? ' (inline)' : ' (link)'}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
