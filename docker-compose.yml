@@ -19,17 +19,17 @@ services:
       DATABASE_URL: postgresql://recipe:recipe@db:5432/recipebook
       NEXT_TELEMETRY_DISABLED: "1"
       HOST: 0.0.0.0
+      SSH_AUTH_SOCK: /run/host-services/ssh-agent.sock
     ports:
       - "3000:3000"
-    user: "1000:1000"                     # run as 'node' user
+    user: "1000:1000"
     volumes:
-      - .:/app                            # your code
-      - pnpm_store:/app/.pnpm-store       # persistent pnpm cache
-    # IMPORTANT: allow executing scripts in node_modules
+      - .:/app
+      - pnpm_store:/app/.pnpm-store
+      - ~/.ssh:/home/node/.ssh:ro  # Mount SSH directory
     tmpfs:
       - /app/node_modules:rw,exec,uid=1000,gid=1000
 
 volumes:
   dbdata: {}
   pnpm_store: {}
-
