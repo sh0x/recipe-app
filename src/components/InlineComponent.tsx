@@ -130,3 +130,4 @@ export default function InlineComponent({ targetSlug, scale, includeMode }: Inli
     </div>
   );
 }
+
