@@ -20,7 +20,10 @@ export default async function RecipePage({ params }: { params: { slug: string } 
           <h2 className="text-2xl font-semibold">{recipe.title}</h2>
           <div className="text-sm text-gray-500">{recipe.slug} — v{recipe.version}</div>
         </div>
-        <div className="text-sm text-gray-600">{recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-gray-600">{recipe.yieldQty ? `${recipe.yieldQty} ${recipe.yieldUnit ?? ''}` : ''}</div>
+          <Link href={`/recipes/${recipe.slug}/print`} className="btn">Print</Link>
+        </div>
       </div>
 
       <section className="grid gap-6 md:grid-cols-2">
